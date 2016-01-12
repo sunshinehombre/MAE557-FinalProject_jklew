@@ -100,6 +100,71 @@ contains
   end subroutine solveGEqn
 
 
+  ! *** Convert stream function to velocities u & v ***
+  subroutine convert_streamfunc(dt,nt,U,var,h,nxy,soln)
+    use CONSTS
+    implicit none
+
+    real(WP), intent(in) :: dt ! Time step size
+    integer, intent(in) :: nt ! Total time steps
+    real(WP), intent(in) :: U ! Bulk velocity
+
+    ! Variable index for solution matrix
+    !      var = 1: zeta (vorticity)
+    !      var = 2: psi (stream function)
+    !      var = 3: G (iso-surface)
+    integer, intent(in) :: var
+    real(WP), intent(in) :: h ! Spatial step size
+    integer, intent(in) :: nxy ! Total spatial steps nx=ny
+    real(WP), dimension(var,2,nxy+1,nxy+1), intent(inout) :: soln ! Solution matrix
+
+    integer :: i,j,k
+
+    ! Use space in soln containing old solution at t=dt*(nt-1) to store u & v fields
+    ! This corresponds to u = soln(1,1,:,:) and v = soln(2,1,:,:)
+    !$OMP PARALLEL
+
+    ! Store u & v boundary conditions
+    !$OMP DO
+    do j=1,nxy+1
+       k = 1 ! Bottom wall
+       soln(1,1,j,k) = 0.0_WP ! u
+       soln(2,1,j,k) = 0.0_WP ! v
+       
+       k = nxy+1 ! Top wall
+       soln(1,1,j,k) = 0.0_WP ! u
+       soln(2,1,j,k) = 0.0_WP ! v
+    end do
+    !$OMP END DO
+    
+    ! Store u & v at inner grid points
+    !$OMP DO
+    do j=1,nxy+1
+       do k=2,nxy
+          if (j.eq.1) then ! Left boundary
+             soln(1,1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
+             soln(2,1,j,k) = -(-soln(2,2,j+2,k) + 4.0_WP*soln(2,2,j+1,k) - &
+                  3.0_WP*soln(2,2,j,k))/(2.0_WP*h) ! v
+             
+          elseif (j.eq.nxy+1) then ! Right boundary
+             soln(1,1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
+             soln(2,1,j,k) = -(3.0_WP*soln(2,2,j,k) - 4.0_WP*soln(2,2,j-1,k) + &
+                  soln(2,2,j-2,k))/(2.0_WP*h) ! v
+             
+          else
+             soln(1,1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
+             soln(2,1,j,k) = -(soln(2,2,j+1,k) - soln(2,2,j-1,k))/(2.0_WP*h) ! v
+             
+          end if
+       end do
+    end do
+    !$OMP END DO
+
+    !$OMP END PARALLEL
+    
+  end subroutine convert_streamfunc
+
+
   ! *** Vorticity-stream function approach below ************************************
   subroutine vs_step(dt,t_iter,U,nu,var,h,nxy,soln)
     use CONSTS
@@ -151,8 +216,8 @@ contains
        end if
        
        subitercount = subitercount + 1
-       ! print *, "t_iter=", t_iter, "Subiteration=", subitercount, &
-            ! "Residual=", residual
+       print *, "t_iter=", t_iter, "Subiteration=", subitercount, &
+            "Residual=", residual
     end do
 
     !$OMP PARALLEL
@@ -214,6 +279,66 @@ contains
     soln(1,1,:,:) = soln(1,2,:,:)
     
   end subroutine vs_step
+
+
+  ! *** Write solution to file ******************************************************
+  subroutine write_solution(ma,h,var,dt,nt,nxy,soln)
+    use CONSTS
+    implicit none
+
+    real(WP), intent(in) :: ma ! Mach number
+    real(WP), intent(in) :: h ! Spatial step size
+
+    ! Variable index for solution matrix
+    !      var = 1: u
+    !      var = 2: v
+    !      var = 3: G
+    integer, intent(in) :: var
+
+    real(WP), intent(in) :: dt ! Time step size
+    integer, intent(in) :: nt ! Total time steps
+    integer, intent(in) :: nxy ! Total spatial steps nx=ny
+    real(WP), dimension(var,2,nxy+1,nxy+1), intent(in) :: soln
+
+    integer :: i,j,k ! Loop iterators
+
+    ! Strings used for output filenames
+    character(len=8), parameter :: wd = '../data/'
+    character(len=54) :: outfile ! Output filenames
+    
+    character(len=3), parameter :: tstep = 'dt_'
+    character(len=5) :: mach
+    character(len=2), parameter :: time = '_t', sstep = '_h'
+    character(len=4), parameter :: varnum = '_var', endname = '.txt'
+
+    ! Determine the mach number under consideration 
+    select case(int(ma*100.0_WP))
+       case(5)
+          mach = 'ma005'
+       case(10)
+          mach = 'ma010'
+       case(30)
+          mach = 'ma030'
+       case default
+          print *, 'Unknown Mach number.'
+       end select
+    
+       ! Write data to file
+       do i=1,var
+          write(outfile,"(a8,a5,a3,i10.10,a2,i9.9,a2,i6.6,a4,i1,a4)") wd,mach, &
+               tstep,int(dt*1E9_WP),time,nt+1,sstep,int(h*1E5_WP),varnum,i,endname
+
+          open(unit=1,file=outfile,status="replace",action="readwrite")
+          ! Write u, v, and G
+          do k=1,nxy+1
+             write(unit=1,fmt="(1000000(e11.4,1x))") &
+                  (soln(i,1,j,k), j=1,nxy+1)
+          end do
+          close(unit=1)
+
+       end do
+
+  end subroutine write_solution
   
 
 end program GEQN_SOLVER
