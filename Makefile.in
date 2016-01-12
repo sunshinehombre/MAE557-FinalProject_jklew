@@ -1,0 +1,26 @@
+# Directories
+HOMEDIR = $(shell pwd)
+SRCDIR = $(HOMEDIR)/src
+OBJDIR = $(HOMEDIR)/obj
+MODDIR = $(HOMEDIR)/mod
+BINDIR = $(HOMEDIR)/bin
+
+# All filenames
+SRC = consts aux_subroutines gEqnSolver
+
+# Object *.o files
+OBJ = $(addsuffix .o, $(SRC))
+
+# Binary executable
+BIN = gEqnSolver
+
+# Compiler
+F90 = ifort
+
+# Compiler flags
+F90FLAGS = -O3 -openmp
+MODFLAGS = -module $(MODDIR)
+
+# External libraries
+# LAPACK_DIR = /home/jklew/Downloads/lapack-3.5.0
+# LAPACK_LIB = -L$(LAPACK_DIR) -lblas -llapack
