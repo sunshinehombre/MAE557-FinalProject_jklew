@@ -279,66 +279,6 @@ contains
     soln(1,1,:,:) = soln(1,2,:,:)
     
   end subroutine vs_step
-
-
-  ! *** Write solution to file ******************************************************
-  subroutine write_solution(ma,h,var,dt,nt,nxy,soln)
-    use CONSTS
-    implicit none
-
-    real(WP), intent(in) :: ma ! Mach number
-    real(WP), intent(in) :: h ! Spatial step size
-
-    ! Variable index for solution matrix
-    !      var = 1: u
-    !      var = 2: v
-    !      var = 3: G
-    integer, intent(in) :: var
-
-    real(WP), intent(in) :: dt ! Time step size
-    integer, intent(in) :: nt ! Total time steps
-    integer, intent(in) :: nxy ! Total spatial steps nx=ny
-    real(WP), dimension(var,2,nxy+1,nxy+1), intent(in) :: soln
-
-    integer :: i,j,k ! Loop iterators
-
-    ! Strings used for output filenames
-    character(len=8), parameter :: wd = '../data/'
-    character(len=54) :: outfile ! Output filenames
-    
-    character(len=3), parameter :: tstep = 'dt_'
-    character(len=5) :: mach
-    character(len=2), parameter :: time = '_t', sstep = '_h'
-    character(len=4), parameter :: varnum = '_var', endname = '.txt'
-
-    ! Determine the mach number under consideration 
-    select case(int(ma*100.0_WP))
-       case(5)
-          mach = 'ma005'
-       case(10)
-          mach = 'ma010'
-       case(30)
-          mach = 'ma030'
-       case default
-          print *, 'Unknown Mach number.'
-       end select
-    
-       ! Write data to file
-       do i=1,var
-          write(outfile,"(a8,a5,a3,i10.10,a2,i9.9,a2,i6.6,a4,i1,a4)") wd,mach, &
-               tstep,int(dt*1E9_WP),time,nt+1,sstep,int(h*1E5_WP),varnum,i,endname
-
-          open(unit=1,file=outfile,status="replace",action="readwrite")
-          ! Write u, v, and G
-          do k=1,nxy+1
-             write(unit=1,fmt="(1000000(e11.4,1x))") &
-                  (soln(i,1,j,k), j=1,nxy+1)
-          end do
-          close(unit=1)
-
-       end do
-
-  end subroutine write_solution
   
 
 end program GEQN_SOLVER
