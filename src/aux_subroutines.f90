@@ -20,7 +20,31 @@ contains
 
     integer :: i,j,k
 
-
+    do i=1,var 
+       select case(i)
+       case(1) ! zeta (vorticity)
+          do j=1,nxy+1
+             do k=1,nxy+1
+                soln(i,1,j,k) = 0.0_WP
+             end do
+          end do
+       case(2) ! psi (stream function)
+          do j=1,nxy+1
+             do k=1,nxy+1
+                soln(i,1,j,k) = 0.0_WP
+             end do
+          end do
+       case(3) ! G (iso-surface)
+          do j=1,nxy+1
+             do k=1,nxy+1
+                soln(i,1,j,k) = 0.0_WP
+             end do
+          end do
+       case default
+          print *, 'Attempted to initialize unknown variable.'
+       end select
+    end do
+    
   end subroutine soln_init
 
 
