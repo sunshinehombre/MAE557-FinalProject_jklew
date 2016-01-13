@@ -14,6 +14,7 @@ $(OBJDIR)/%.o : %.f90
 
 clean :
 	rm -f $(BINDIR)/*
+	rm -f $(DATADIR)/*
 	rm -f $(MODDIR)/*.mod
 	rm -f $(OBJDIR)/*.o
 	rm -f $(SRCDIR)/*~

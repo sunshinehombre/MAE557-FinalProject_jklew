@@ -7,10 +7,6 @@ program GEQN_SOLVER
   !
   ! GEQN_SOLVER solves the G-equation for the corrugated flamelets regime in a 2D
   ! incompressible channel flow (working fluid = air at STP).
-  
-
-  ! Set number of OpenMP threads
-  CALL OMP_SET_NUM_THREADS(NTHREADS)
 
   ! Spatial step size h=dx=dy
   real(WP), parameter :: h1 = 0.0625_WP ! [m], Grid is 16x16
@@ -22,7 +18,7 @@ program GEQN_SOLVER
 
   ! Time step size & total simulation time
   real(WP), parameter :: dt1 = 1E-6_WP ! [s]
-  real(WP), parameter :: tfin1 = 5.0_WP ! [s]
+  real(WP), parameter :: tfin1 = 1E-6_WP !0.01_WP ! [s]
 
   ! Mach number based on bulk velocity
   real(WP), parameter :: ma1 = 0.05_WP
@@ -32,11 +28,14 @@ program GEQN_SOLVER
   ! For timing purposes
   integer :: t1,t2,clock_rate,clock_max
 
+  ! Set number of OpenMP threads
+  CALL OMP_SET_NUM_THREADS(NTHREADS)
+
   ! Start timer
   call system_clock (t1,clock_rate,clock_max)
 
   ! Solve for incompressible flow field with iso-surface from G-Equation
-  call solveGEqn(h1,lside1,dt1,tfin1,ma1)
+  call solveGEqn(h3,lside1,dt1,tfin1,ma1)
 
   ! Stop timer
   call system_clock (t2,clock_rate,clock_max)
@@ -84,7 +83,7 @@ contains
     if (AllocateStatus.ne.0) stop "Error: Not enough memory."
 
     ! Initialize solution matrix at t=0 (initial zeta, psi, and G values)
-    call soln_init(var,nxy,soln)
+    call soln_init(var,nxy,U,h,soln)
 
     ! Iterate until final time
     do t_iter = 1,nt
@@ -97,9 +96,147 @@ contains
     ! Write u, v, and G to file for plotting purposes
     call write_solution(ma,h,var,dt,nt,nxy,soln)
 
+    ! For testing purposes
+    print *, 'Bulk velocity: ', U, ' m/s'
+
   end subroutine solveGEqn
 
 
+  ! *** Vorticity-stream function approach below ************************************
+  subroutine vs_step(dt,t_iter,U,nu,var,h,nxy,soln)
+    use CONSTS
+    implicit none
+
+    real(WP), intent(in) :: dt ! Time step size
+    integer, intent(in) :: t_iter ! Current timestep index
+    real(WP), intent(in) :: U ! Bulk velocity
+    real(WP), intent(in) :: nu ! Kinematic viscosity [m^2/s]
+
+    ! Variable index for solution matrix
+    !      var = 1: zeta (vorticity)
+    !      var = 2: psi (stream function)
+    !      var = 3: G (iso-surface)
+    integer, intent(in) :: var
+    real(WP), intent(in) :: h ! Spatial step size
+    integer, intent(in) :: nxy ! Total spatial steps nx=ny
+    real(WP), dimension(var,2,nxy+1,nxy+1), intent(inout) :: soln ! Solution matrix
+
+    real(WP), dimension(nxy+1,nxy+1) :: psip ! Psi at subiteration subitercount
+    integer :: i,j,k,subitercount ! Loop iterators
+    real(WP), parameter :: tol = 0.001_WP ! Tolerance
+    real(WP) :: residual ! Residual
+    real(WP), parameter :: beta = 1.5_WP ! Coefficient in Successive Over Relaxation
+
+    ! *** Substep 1: Iterate for new psi values ***
+    ! Initialize subiteration counter and residual
+    subitercount = 0
+    residual = 1.0_WP
+    do while (residual.gt.tol)
+       residual = 0.0_WP
+       
+       ! Initialize psi values at subiteration subitercount to psi values at t=t_iter
+       psip = soln(2,1,:,:)
+       
+       ! Solve for psi at subiteration subitercount+1 with S.O.R.
+       do j=1,nxy+1
+          do k=2,nxy
+             if (j.eq.1 .and. subitercount.gt.0) then
+                soln(2,1,j,k) = 0.25_WP*beta*( soln(2,1,j+1,k) + soln(2,1,nxy+1,k)+ &
+                     soln(2,1,j,k+1) + soln(2,1,j,k-1) + h**2*soln(1,1,j,k) ) + &
+                     (1.0_WP-beta)*soln(2,1,j,k)
+                
+             elseif (j.eq.nxy+1) then
+                soln(2,1,j,k) = 0.25_WP*beta*( soln(2,1,1,k) + soln(2,1,j-1,k) + &
+                     soln(2,1,j,k+1) + soln(2,1,j,k-1) + h**2*soln(1,1,j,k) ) + &
+                     (1.0_WP-beta)*soln(2,1,j,k)
+                
+             else
+                soln(2,1,j,k) = 0.25_WP*beta*( soln(2,1,j+1,k) + soln(2,1,j-1,k) + &
+                     soln(2,1,j,k+1) + soln(2,1,j,k-1) + h**2*soln(1,1,j,k) ) + &
+                     (1.0_WP-beta)*soln(2,1,j,k)
+                
+             end if
+          end do
+       end do
+
+       if (t_iter.le.2) then ! First and second timesteps where solution is 0
+          residual = sum(abs(soln(2,1,:,:) - psip))
+       else
+          residual = sum(abs(soln(2,1,:,:) - psip))/sum(abs(psip))
+       end if
+       
+       subitercount = subitercount + 1
+       print *, "t_iter=", t_iter, "Subiteration=", subitercount, &
+            "Residual=", residual
+    end do
+
+    !$OMP PARALLEL
+    
+    ! Store converged psi (stream function) solution at t=t_iter+1
+    !$OMP DO
+    do j=1,nxy+1
+       do k=1,nxy+1
+          soln(2,2,j,k) = soln(2,1,j,k) 
+       end do
+    end do
+    !$OMP END DO
+
+    ! *** Substep 2: Determine zeta (vorticity) B.C.s using inner psi & zeta ***
+
+    ! ! Left inflow periodic boundary conditions for top and bottom wall
+    ! soln(1,2,1,1) = soln(1,2,nxy+1,1) ! Bottom wall
+    ! soln(1,2,1,nxy+1) = soln(1,2,nxy+1,nxy+1) ! Top wall
+    
+    !$OMP DO
+    do j=1,nxy+1
+       k = 1 ! Bottom wall
+       soln(1,2,j,k) = -2.0_WP/h**2*soln(2,2,j,k+1)
+       
+       k = nxy+1 ! Top wall
+       soln(1,2,j,k) = -2.0_WP/h**2*soln(2,2,j,k-1)
+    end do
+    !$OMP END DO   
+
+    !$OMP DO
+    do k=2,nxy
+       j = 1 ! Left inflow
+       ! soln(1,2,j,k) = -(soln(2,2,nxy+1,k)-2.0_WP*soln(2,2,nxy,k) + &
+            ! soln(2,2,nxy-1,k))/h**2 -(soln(2,2,nxy+1,k+1)-2.0_WP*soln(2,2,nxy+1,k)&
+            ! + soln(2,2,nxy+1,k-1))/h**2
+
+       soln(1,2,j,k) = -(soln(2,2,j+1,k)-2.0_WP*soln(2,2,j,k)+soln(2,2,nxy+1,k))/ &
+            h**2 - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
+       
+       j = nxy+1 ! Right outflow
+       ! soln(1,2,j,k) = -(soln(2,2,3,k)-2.0_WP*soln(2,2,2,k)+soln(2,2,1,k))/h**2 - &
+            ! (soln(2,2,1,k+1)-2.0_WP*soln(2,2,1,k)+soln(2,2,1,k-1))/h**2
+
+       soln(1,2,j,k) = -(soln(2,2,1,k)-2.0_WP*soln(2,2,j,k)+soln(2,2,j-1,k))/h**2 - &
+            (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
+    end do
+    !$OMP END DO
+
+    ! *** Substep 3: Solve vorticity transport equation for inner cells ***
+    !$OMP DO
+    do j=2,nxy
+       do k=2,nxy
+          soln(1,2,j,k) = soln(1,1,j,k) + dt/(4.0_WP*h**2) * ( &
+               -(soln(2,1,j,k+1)-soln(2,1,j,k-1))*(soln(1,1,j+1,k)-soln(1,1,j-1,k)) &
+               +(soln(2,1,j+1,k)-soln(2,1,j-1,k))*(soln(1,1,j,k+1)-soln(1,1,j,k-1)) &
+               +4.0_WP*nu*(soln(1,1,j+1,k) + soln(1,1,j-1,k) + soln(1,1,j,k+1) &
+               +soln(1,1,j,k-1) - 4.0_WP*soln(1,1,j,k)) )
+       end do
+    end do
+    !$OMP END DO
+
+    !$OMP END PARALLEL
+
+    ! Store solution at t=t_iter+1 for next timestep
+    soln(1,1,:,:) = soln(1,2,:,:)
+    
+  end subroutine vs_step
+  
+  
   ! *** Convert stream function to velocities u & v ***
   subroutine convert_streamfunc(dt,nt,U,var,h,nxy,soln)
     use CONSTS
@@ -143,17 +280,23 @@ contains
        do k=2,nxy
           if (j.eq.1) then ! Left boundary
              soln(1,1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
-             soln(2,1,j,k) = -(-soln(2,2,j+2,k) + 4.0_WP*soln(2,2,j+1,k) - &
-                  3.0_WP*soln(2,2,j,k))/(2.0_WP*h) ! v
+             ! soln(2,1,j,k) = -(-soln(2,2,j+2,k) + 4.0_WP*soln(2,2,j+1,k) - &
+                  ! 3.0_WP*soln(2,2,j,k))/(2.0_WP*h) ! v
+
+             soln(2,1,j,k) = -(soln(2,2,j+1,k) - soln(2,2,nxy+1,k))/(2.0_WP*h) ! v
              
           elseif (j.eq.nxy+1) then ! Right boundary
              soln(1,1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
-             soln(2,1,j,k) = -(3.0_WP*soln(2,2,j,k) - 4.0_WP*soln(2,2,j-1,k) + &
-                  soln(2,2,j-2,k))/(2.0_WP*h) ! v
+             ! soln(2,1,j,k) = -(3.0_WP*soln(2,2,j,k) - 4.0_WP*soln(2,2,j-1,k) + &
+             ! soln(2,2,j-2,k))/(2.0_WP*h) ! v
+
+             soln(2,1,j,k) = -(soln(2,2,1,k) - soln(2,2,j-1,k))/(2.0_WP*h) ! v
              
-          else
+          elseif (j.gt.3 .and. j.lt.nxy-1) then
              soln(1,1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
              soln(2,1,j,k) = -(soln(2,2,j+1,k) - soln(2,2,j-1,k))/(2.0_WP*h) ! v
+
+          else
              
           end if
        end do
@@ -163,122 +306,6 @@ contains
     !$OMP END PARALLEL
     
   end subroutine convert_streamfunc
-
-
-  ! *** Vorticity-stream function approach below ************************************
-  subroutine vs_step(dt,t_iter,U,nu,var,h,nxy,soln)
-    use CONSTS
-    implicit none
-
-    real(WP), intent(in) :: dt ! Time step size
-    integer, intent(in) :: t_iter ! Current timestep index
-    real(WP), intent(in) :: U ! Bulk velocity
-    real(WP), intent(in) :: nu ! Kinematic viscosity [m^2/s]
-
-    ! Variable index for solution matrix
-    !      var = 1: zeta (vorticity)
-    !      var = 2: psi (stream function)
-    !      var = 3: G (iso-surface)
-    integer, intent(in) :: var
-    real(WP), intent(in) :: h ! Spatial step size
-    integer, intent(in) :: nxy ! Total spatial steps nx=ny
-    real(WP), dimension(var,2,nxy+1,nxy+1), intent(inout) :: soln ! Solution matrix
-
-    real(WP), dimension(nxy+1,nxy+1) :: psip ! Psi at subiteration subitercount
-    integer :: i,j,k,subitercount ! Loop iterators
-    real(WP), parameter :: tol = 0.001_WP ! Tolerance
-    real(WP) :: residual ! Residual
-    real(WP), parameter :: beta = 1.5_WP ! Coefficient in Successive Over Relaxation
-
-    ! *** Substep 1: Iterate for new psi values ***
-    ! Initialize subiteration counter and residual
-    subitercount = 0
-    residual = 1.0_WP
-    do while (residual.gt.tol)
-       residual = 0.0_WP
-       
-       ! Initialize psi values at subiteration subitercount to psi values at t=t_iter
-       psip = soln(2,1,:,:)
-
-       ! Solve for psi at subiteration subitercount+1 with S.O.R.
-       do j=2,nxy
-          do k=2,nxy
-             soln(2,1,j,k) = 0.25_WP*beta*( soln(2,1,j+1,k) + soln(2,1,j-1,k) + &
-                  soln(2,1,j,k+1) + soln(2,1,j,k-1) + h**2*soln(1,1,j,k) ) + &
-                  (1.0_WP-beta)*soln(2,1,j,k)
-          end do
-       end do
-
-       if (t_iter.le.2) then ! First and second timesteps where solution is 0
-          residual = sum(abs(soln(2,1,:,:) - psip))
-       else
-          residual = sum(abs(soln(2,1,:,:) - psip))/sum(abs(psip))
-       end if
-       
-       subitercount = subitercount + 1
-       print *, "t_iter=", t_iter, "Subiteration=", subitercount, &
-            "Residual=", residual
-    end do
-
-    !$OMP PARALLEL
-    
-    ! Store converged psi (stream function) solution at t=t_iter+1
-    !$OMP DO
-    do j=1,nxy+1
-       do k=1,nxy+1
-          soln(2,2,j,k) = soln(2,1,j,k) 
-       end do
-    end do
-    !$OMP END DO
-
-    ! *** Substep 2: Determine zeta (vorticity) B.C.s using inner psi & zeta ***
-
-    ! Left inflow periodic boundary conditions for top and bottom wall
-    soln(1,2,1,1) = soln(1,2,nxy+1,1) ! Bottom wall
-    soln(1,2,1,nxy+1) = soln(1,2,nxy+1,nxy+1) ! Top wall
-    
-    !$OMP DO
-    do j=2,nxy+1
-       k = 1 ! Bottom wall
-       soln(1,2,j,k) = -2.0_WP/h**2*soln(2,2,j,k+1)
-       
-       k = nxy+1 ! Top wall
-       soln(1,2,j,k) = -2.0_WP/h**2*soln(2,2,j,k-1)
-    end do
-    !$OMP END DO   
-
-    !$OMP DO
-    do k=2,nxy
-       j = 1 ! Left inflow
-       soln(1,2,j,k) = -(soln(2,2,nxy+1,k)-2.0_WP*soln(2,2,nxy,k) + &
-            soln(2,2,nxy-1,k))/h**2 - (soln(2,2,nxy+1,k+1)-2.0_WP*soln(2,2,nxy+1,k) &
-            + soln(2,2,nxy+1,k-1))/h**2
-       
-       j = nxy+1 ! Right outflow
-       soln(1,2,j,k) = -(soln(2,2,3,k)-2.0_WP*soln(2,2,2,k)+soln(2,2,1,k))/h**2 - &
-            (soln(2,2,1,k+1)-2.0_WP*soln(2,2,1,k)+soln(2,2,1,k-1))/h**2
-    end do
-    !$OMP END DO
-
-    ! *** Substep 3: Solve vorticity transport equation for inner cells ***
-    !$OMP DO
-    do j=2,nxy
-       do k=2,nxy
-          soln(1,2,j,k) = soln(1,1,j,k) + dt/(4.0_WP*h**2) * ( &
-               -(soln(2,1,j,k+1)-soln(2,1,j,k-1))*(soln(1,1,j+1,k)-soln(1,1,j-1,k)) &
-               +(soln(2,1,j+1,k)-soln(2,1,j-1,k))*(soln(1,1,j,k+1)-soln(1,1,j,k-1)) &
-               +4.0_WP*nu*(soln(1,1,j+1,k) + soln(1,1,j-1,k) + soln(1,1,j,k+1) &
-               +soln(1,1,j,k-1) - 4.0_WP*soln(1,1,j,k)) )
-       end do
-    end do
-    !$OMP END DO
-
-    !$OMP END PARALLEL
-
-    ! Store solution at t=t_iter+1 for next timestep
-    soln(1,1,:,:) = soln(1,2,:,:)
-    
-  end subroutine vs_step
   
 
 end program GEQN_SOLVER

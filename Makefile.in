@@ -1,9 +1,10 @@
 # Directories
 HOMEDIR = $(shell pwd)
-SRCDIR = $(HOMEDIR)/src
-OBJDIR = $(HOMEDIR)/obj
-MODDIR = $(HOMEDIR)/mod
 BINDIR = $(HOMEDIR)/bin
+DATADIR = $(HOMEDIR)/data
+MODDIR = $(HOMEDIR)/mod
+OBJDIR = $(HOMEDIR)/obj
+SRCDIR = $(HOMEDIR)/src
 
 # All filenames
 SRC = consts aux_subroutines gEqnSolver

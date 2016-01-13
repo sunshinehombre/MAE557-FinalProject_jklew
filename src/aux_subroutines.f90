@@ -33,8 +33,13 @@ contains
        case(2) ! psi (stream function)
           do j=1,nxy+1
              do k=1,nxy+1
-                if (j.eq.1 .and. k.ge.2 .and. k.le.nxy) then ! Uniform vel. profile
-                   soln(i,1,j,k) = U*(k-1)*h
+                ! if (j.eq.1 .or. j.eq.2 .or. j.eq.nxy .or. j.eq.nxy+1) then
+                if (j.eq.1) then
+                   soln(i,1,j,k) = U*(k-1)*h ! Uniform vel.
+                   
+                   ! soln(i,1,j,k) = -2.0_WP*U*((k-1)*h)**3/(nxy*h)**2 + &
+                        ! 1.5_WP*U*(k-1)*h ! Parabolic vel. (fully developed)
+                   
                 else
                    soln(i,1,j,k) = 0.0_WP
                 end if
@@ -108,8 +113,7 @@ contains
           open(unit=1,file=outfile,status="replace",action="readwrite")
           ! Write u, v, and G
           do k=1,nxy+1
-             write(unit=1,fmt="(1000000(e11.4,1x))") &
-                  (soln(i,1,j,k), j=1,nxy+1)
+             write(unit=1,fmt="(1000000(e11.4,1x))") (soln(i,1,j,k), j=1,nxy+1)
           end do
           close(unit=1)
 

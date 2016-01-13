@@ -25,7 +25,7 @@ module CONSTS
   real(WP), parameter :: RGAS = 287.0_WP ! J/(kg K)
   real(WP), parameter :: CP = GAMMA/(GAMMA-1.0_WP)*RGAS ! J/(kg K)
   
-  ! Reference pressure, temperature, density & total energy
+  ! Reference pressure, temperature, density
   real(WP), parameter :: PREF = 100000.0_WP ! Pa
   real(WP), parameter :: TREF = 300.0_WP ! K
   real(WP), parameter :: DREF = PREF/(RGAS*TREF) ! kg/m^3
