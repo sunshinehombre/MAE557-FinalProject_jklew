@@ -18,7 +18,7 @@ program GEQN_SOLVER
 
   ! Time step size & total simulation time
   real(WP), parameter :: dt1 = 1E-6_WP ! [s]
-  real(WP), parameter :: tfin1 = 1E-6_WP !0.01_WP ! [s]
+  real(WP), parameter :: tfin1 = 5.0_WP !0.01_WP ! [s]
 
   ! Mach number based on bulk velocity
   real(WP), parameter :: ma1 = 0.05_WP
@@ -28,11 +28,11 @@ program GEQN_SOLVER
   ! For timing purposes
   integer :: t1,t2,clock_rate,clock_max
 
-  ! Set number of OpenMP threads
-  CALL OMP_SET_NUM_THREADS(NTHREADS)
-
   ! Start timer
   call system_clock (t1,clock_rate,clock_max)
+
+  ! Set number of OpenMP threads
+  ! call OMP_SET_NUM_THREADS(NTHREADS)
 
   ! Solve for incompressible flow field with iso-surface from G-Equation
   call solveAll(h3,lside1,dt1,tfin1,ma1)
@@ -87,11 +87,11 @@ contains
     ! Initialize solution matrix at t=0 (initial zeta, psi, and G values)
     call soln_init(h,nxy,U,var,soln)
 
-    ! ! Iterate until final time
-    ! do t_iter = 1,nt
-    !    call vs_step(dt,t_iter,h,nxy,nu,var,soln)
-    !    call gEqn_step(dt,t_iter,h,nxy,var,soln)
-    ! end do
+    ! Iterate until final time
+    do t_iter = 1,nt
+       call vs_step(dt,t_iter,h,nxy,nu,var,soln)
+       ! call gEqn_step(dt,t_iter,h,nxy,var,soln)
+    end do
     
     ! Write u, v, and G to file for plotting purposes
     call write_solution(ma,h,nxy,dt,nt,var,soln)
@@ -134,6 +134,8 @@ contains
     real(WP) :: residual ! Residual
     real(WP), parameter :: beta = 1.5_WP !0.9_WP ! Coefficient in Successive Over Relaxation
 
+    call OMP_SET_NUM_THREADS(NTHREADS)
+    
     ! *** Substep 1: Iterate for new psi values ***
     ! Initialize subiteration counter and residual
     subitercount = 0
@@ -147,7 +149,7 @@ contains
        ! Solve for psi at subiteration subitercount+1 with S.O.R.
        do j=1,nxy+1
           do k=2,nxy
-             if (j.eq.1 .and. t_iter.gt.1) then
+             if (j.eq.1) then !.and. t_iter.gt.1) then
                 ! *** Periodic inflow B.C. ***
                 soln(2,1,j,k) = 0.25_WP*beta*( soln(2,1,j+1,k)+soln(2,1,nxy+1,k) + &
                      soln(2,1,j,k+1) + soln(2,1,j,k-1) + h**2*soln(1,1,j,k) ) + &
@@ -159,15 +161,15 @@ contains
                 !      (1.0_WP-beta)*soln(2,1,j,k)
                 
              elseif (j.eq.nxy+1) then
-                ! ! *** Periodic outflow B.C. ***
-                ! soln(2,1,j,k) = 0.25_WP*beta*( soln(2,1,1,k) + soln(2,1,j-1,k) + &
-                !      soln(2,1,j,k+1) + soln(2,1,j,k-1) + h**2*soln(1,1,j,k) ) + &
-                !      (1.0_WP-beta)*soln(2,1,j,k)
-
-                ! *** Non-periodic outflow B.C. ***
-                soln(2,1,j,k) = beta*( -2.0_WP*soln(2,1,j-1,k)+soln(2,1,j-2,k) + &
+                ! *** Periodic outflow B.C. ***
+                soln(2,1,j,k) = 0.25_WP*beta*( soln(2,1,1,k) + soln(2,1,j-1,k) + &
                      soln(2,1,j,k+1) + soln(2,1,j,k-1) + h**2*soln(1,1,j,k) ) + &
                      (1.0_WP-beta)*soln(2,1,j,k)
+
+                ! ! *** Non-periodic outflow B.C. ***
+                ! soln(2,1,j,k) = beta*( -2.0_WP*soln(2,1,j-1,k)+soln(2,1,j-2,k) + &
+                !      soln(2,1,j,k+1) + soln(2,1,j,k-1) + h**2*soln(1,1,j,k) ) + &
+                !      (1.0_WP-beta)*soln(2,1,j,k)
                 
              else
                 soln(2,1,j,k) = 0.25_WP*beta*( soln(2,1,j+1,k) + soln(2,1,j-1,k) + &
@@ -220,13 +222,13 @@ contains
        
        j = nxy+1 ! Right outflow
 
-       ! ! *** Periodic outflow B.C. ***
-       ! soln(1,2,j,k) = -(soln(2,2,1,k)-2.0_WP*soln(2,2,j,k)+soln(2,2,j-1,k))/h**2 &
-            ! - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
-
-       ! *** Non-periodic outflow B.C. ***
-       soln(1,2,j,k) = -(soln(2,2,j,k)-2.0_WP*soln(2,2,j-1,k)+soln(2,2,j-2,k))/h**2 &
+       ! *** Periodic outflow B.C. ***
+       soln(1,2,j,k) = -(soln(2,2,1,k)-2.0_WP*soln(2,2,j,k)+soln(2,2,j-1,k))/h**2 &
             - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
+
+       ! ! *** Non-periodic outflow B.C. ***
+       ! soln(1,2,j,k) = -(soln(2,2,j,k)-2.0_WP*soln(2,2,j-1,k)+soln(2,2,j-2,k))/h**2 &
+       !      - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
        
     end do
     !$OMP END DO
@@ -298,44 +300,69 @@ contains
 
           if (j.eq.1) then ! Left inflow boundary
              
-             ! SLNOT * |grad G|
-             rhs1 = dt*
+             ! ! SLNOT * |grad G|
+             ! rhs1 = dt*
 
-             ! SLNOT * ML * K * |grad G|
-             rhs2 = dt*
+             ! ! SLNOT * ML * K * |grad G|
+             ! rhs2 = dt*
 
-             ! ML * S * |grad G|
-             rhs3 = dt*
+             ! ! ML * S * |grad G|
+             ! rhs3 = dt*
 
-             ! Substitute all terms in G-Eqn to obtain solution at timestep t_iter
-             soln(3,2,j,k) = g(j,k)-dt/(2.0_WP*h)*( uv(1,j,k)*(g(j+1,k)-g(j-1,k)) + &
-                  uv(1,j,k)*(g(j,k+1)-g(j,k-1)) ) + rhs1 - rhs2 - rhs3
+             ! ! Substitute all terms in G-Eqn to obtain solution at timestep t_iter
+             ! soln(3,2,j,k) = g(j,k)-dt/(2.0_WP*h)*( uv(1,j,k)*(g(j+1,k)-g(j-1,k)) + &
+             !      uv(1,j,k)*(g(j,k+1)-g(j,k-1)) ) + rhs1 - rhs2 - rhs3
              
           elseif (j.eq.nxy+1) then ! Right outflow boundary
              
+             ! ! SLNOT * |grad G|
+             ! rhs1 = dt*
+
+             ! ! SLNOT * ML * K * |grad G|
+             ! rhs2 = dt*
+
+             ! ! ML * S * |grad G|
+             ! rhs3 = dt*
+
+             ! ! Substitute all terms in G-Eqn to obtain solution at timestep t_iter
+             ! soln(3,2,j,k) = g(j,k)-dt/(2.0_WP*h)*( uv(1,j,k)*(g(j+1,k)-g(j-1,k)) + &
+             !      uv(1,j,k)*(g(j,k+1)-g(j,k-1)) ) + rhs1 - rhs2 - rhs3
+             
+          else ! Inner grid points 3 <= (j,k) <= nxy-1
+             
              ! SLNOT * |grad G|
-             rhs1 = dt*
+             rhs1 = dt*SLNOT/(2.0_WP*h) * sqrt( (g(j+1,k)-g(j-1,k))**2 + &
+                  (g(j,k+1)-g(j,k-1))**2 )
 
              ! SLNOT * ML * K * |grad G|
-             rhs2 = dt*
+             rhs2 = -dt*SLNOT*ML/(4.0_WP*h**2)*(   &
+                  4.0_WP*(g(j+1,k)+g(j-1,k) + g(j,k+1)+g(j,k-1)-4.0_WP*g(j,k)) - &
+                  1.0_WP/sqrt((g(j+1,k)-g(j-1,k))**2 + (g(j,k+1)-g(j,k-1))**2)*(  &
+                  (g(j+1,k)-g(j-1,k))*( sqrt((g(j+2,k)-g(j,k))**2 + &
+                  (g(j+1,k+1)-g(j+1,k-1))**2) - sqrt((g(j,k)-g(j-2,k))**2 + &
+                  (g(j-1,k+1)-g(j-1,k-1))**2) ) + (g(j,k+1)-g(j,k-1)) * ( sqrt( &
+                  (g(j+1,k+1)-g(j-1,k+1))**2 + (g(j,k+2)-g(j,k))**2) - sqrt( &
+                  (g(j+1,k-1)-g(j-1,k-1))**2 + (g(j,k)-g(j,k-2))**2) )  )   )
 
              ! ML * S * |grad G|
-             rhs3 = dt*
-
-             ! Substitute all terms in G-Eqn to obtain solution at timestep t_iter
-             soln(3,2,j,k) = g(j,k)-dt/(2.0_WP*h)*( uv(1,j,k)*(g(j+1,k)-g(j-1,k)) + &
-                  uv(1,j,k)*(g(j,k+1)-g(j,k-1)) ) + rhs1 - rhs2 - rhs3
-             
-          else ! Inner grid points
-             
-             ! SLNOT * |grad G|
-             rhs1 = dt*
-
-             ! SLNOT * ML * K * |grad G|
-             rhs2 = dt*
-
-             ! ML * S * |grad G|
-             rhs3 = dt*
+             rhs3 = -dt*ML/( 4.0_WP*h**2*sqrt((g(j+1,k)-g(j-1,k))**2 + (g(j,k+1) - &
+                  g(j,k-1))**2) )*(   (g(j+1,k)-g(j-1,k))*(  4.0_WP*uv(1,j,k) * &
+                  (g(j+1,k)-2.0_WP*g(j,k)+g(j-1,k)) + (g(j+1,k)-g(j-1,k)) * &
+                  (uv(1,j+1,k)-uv(1,j-1,k)) + uv(2,j,k)*(g(j+1,k+1)-g(j+1,k-1) - &
+                  g(j-1,k+1)+g(j-1,k-1)) + (g(j,k+1)-g(j,k-1))*(uv(2,j+1,k) - &
+                  uv(2,j-1,k)) - 1.0_WP/sqrt((g(j+1,k)-g(j-1,k))**2 + (g(j,k+1) - &
+                  g(j,k-1))**2)*(uv(1,j,k)*(g(j+1,k)-g(j-1,k)) + uv(2,j,k) * &
+                  (g(j,k+1)-g(j,k-1)))*( sqrt((g(j+2,k)-g(j,k))**2 + (g(j+1,k+1) - &
+                  g(j+1,k-1))**2) - sqrt((g(j,k)-g(j-2,k))**2 + (g(j-1,k+1) - &
+                  g(j-1,k-1))**2) )  ) + (g(j,k+1)-g(j,k-1))*(  uv(1,j,k) * &
+                  (g(j+1,k+1)-g(j+1,k-1)-g(j-1,k+1)+g(j-1,k-1)) + (g(j+1,k) - &
+                  g(j-1,k))*(uv(1,j,k+1)-uv(1,j,k-1)) + 4.0_WP*uv(2,j,k)*(g(j,k+1)- &
+                  2.0_WP*g(j,k)+g(j,k-1)) + (g(j,k+1)-g(j,k-1))*(uv(2,j,k+1) - &
+                  uv(2,j,k-1)) - 1.0_WP/sqrt((g(j+1,k)-g(j-1,k))**2 + (g(j,k+1) - &
+                  g(j,k-1))**2)*(uv(1,j,k)*(g(j+1,k)-g(j-1,k)) + uv(2,j,k) * &
+                  (g(j,k+1)-g(j,k-1)))*( sqrt((g(j+1,k+1)-g(j-1,k+1))**2 + &
+                  (g(j,k+2)-g(j,k))**2) - sqrt((g(j+1,k-1)-g(j-1,k-1))**2 + &
+                  (g(j,k)-g(j,k-2))**2) )  )   )
 
              ! Substitute all terms in G-Eqn to obtain solution at timestep t_iter
              soln(3,2,j,k) = g(j,k)-dt/(2.0_WP*h)*( uv(1,j,k)*(g(j+1,k)-g(j-1,k)) + &

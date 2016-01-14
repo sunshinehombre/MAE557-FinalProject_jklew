@@ -41,15 +41,16 @@ contains
              do k=1,nxy+1
                 ! if (j.eq.1 .or. j.eq.2 .or. j.eq.nxy .or. j.eq.nxy+1) then
                 ! if (j.eq.1 .and. (k.ge.2 .and. k.le.nxy)) then
-                if (j.eq.1) then
-                   soln(i,2,j,k) = U*(k-1)*h ! Uniform vel.
+                ! if (j.eq.1) then
+                   ! soln(i,2,j,k) = U*(k-1)*h ! Uniform vel.
                    
                    ! soln(i,1,j,k) = -2.0_WP*U*((k-1)*h)**3/(nxy*h)**2 + &
                         ! 1.5_WP*U*(k-1)*h ! Parabolic vel. (fully developed)
                    
-                else
-                   soln(i,2,j,k) = 0.0_WP
-                end if
+                ! else
+                   ! soln(i,2,j,k) = 0.0_WP
+                ! end if
+                soln(i,1,j,k) = U*(k-1)*h
              end do
           end do
        case(3) ! G (iso-surface)
@@ -93,7 +94,8 @@ contains
 
     integer :: i,j,k ! Loop iterators
     
-
+    call OMP_SET_NUM_THREADS(NTHREADS)
+    
     !$OMP PARALLEL
 
     ! Store u & v boundary conditions
@@ -122,10 +124,10 @@ contains
 
           elseif (j.eq.nxy+1) then ! Right boundary
              uv(1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
-             uv(2,j,k) = -(3.0_WP*soln(2,2,j,k) - 4.0_WP*soln(2,2,j-1,k) + &
-                  soln(2,2,j-2,k))/(2.0_WP*h) ! v
+             ! uv(2,j,k) = -(3.0_WP*soln(2,2,j,k) - 4.0_WP*soln(2,2,j-1,k) + &
+                  ! soln(2,2,j-2,k))/(2.0_WP*h) ! v
 
-             ! uv(2,j,k) = -(soln(2,2,1,k) - soln(2,2,j-1,k))/(2.0_WP*h) ! v
+             uv(2,j,k) = -(soln(2,2,1,k) - soln(2,2,j-1,k))/(2.0_WP*h) ! v
 
           else
              uv(1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
@@ -207,7 +209,8 @@ contains
           end do
        case(3) ! Write G values
           do k=1,nxy+1
-             write(unit=1,fmt="(1000000(e11.4,1x))") (soln(i,2,j,k), j=1,nxy+1)
+             write(unit=1,fmt="(1000000(e11.4,1x))") (soln(i,1,j,k), j=1,nxy+1)
+             ! Make sure to check whether t=1 or t=2
           end do
        case default
           print *, 'Attempted to write unknown variable.'

@@ -9,7 +9,7 @@ module CONSTS
   ! Define working precision, pi, and number of OpenMP threads to use
   integer, parameter :: WP = kind(1.0d0)
   real(WP), parameter :: PI = 3.14159265358979323846_WP
-  integer, parameter :: NTHREADS = 8
+  integer, parameter :: NTHREADS = 1
 
   ! Burning velocity of unstretched planar flame [m/s]
   real(WP), parameter :: SLNOT = 0.1_WP
