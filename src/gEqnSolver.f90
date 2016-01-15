@@ -18,7 +18,7 @@ program GEQN_SOLVER
 
   ! Time step size & total simulation time
   real(WP), parameter :: dt1 = 1E-6_WP ! [s]
-  real(WP), parameter :: tfin1 = 5.0_WP !0.01_WP ! [s]
+  real(WP), parameter :: tfin1 = 2.0_WP !1E-1_WP !1.0_WP ! [s]
 
   ! Mach number based on bulk velocity
   real(WP), parameter :: ma1 = 0.05_WP
@@ -130,7 +130,7 @@ contains
     real(WP), dimension(nxy+1,nxy+1) :: psip ! Psi at subiteration subitercount
     
     integer :: i,j,k,subitercount ! Loop iterators
-    real(WP), parameter :: tol = 0.001_WP !0.54_WP !0.001_WP ! Tolerance
+    real(WP), parameter :: tol = 0.001_WP !0.54_WP ! Tolerance
     real(WP) :: residual ! Residual
     real(WP), parameter :: beta = 1.5_WP !0.9_WP ! Coefficient in Successive Over Relaxation
 
@@ -149,7 +149,7 @@ contains
        ! Solve for psi at subiteration subitercount+1 with S.O.R.
        do j=1,nxy+1
           do k=2,nxy
-             if (j.eq.1) then !.and. t_iter.gt.1) then
+             if (j.eq.1) then
                 ! *** Periodic inflow B.C. ***
                 soln(2,1,j,k) = 0.25_WP*beta*( soln(2,1,j+1,k)+soln(2,1,nxy+1,k) + &
                      soln(2,1,j,k+1) + soln(2,1,j,k-1) + h**2*soln(1,1,j,k) ) + &
@@ -212,23 +212,23 @@ contains
     do k=2,nxy
        j = 1 ! Left inflow
        
-       ! *** Periodic inflow B.C. ***
-       soln(1,2,j,k) = -(soln(2,2,j+1,k)-2.0_WP*soln(2,2,j,k)+soln(2,2,nxy+1,k))/ &
-            h**2 - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
+       ! ! *** Periodic inflow B.C. ***
+       ! soln(1,2,j,k) = -(soln(2,2,j+1,k)-2.0_WP*soln(2,2,j,k)+soln(2,2,nxy+1,k))/ &
+       !      h**2 - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
 
-       ! ! *** Non-periodic inflow B.C. ***
-       ! soln(1,2,j,k) = -(soln(2,2,j+2,k)-2.0_WP*soln(2,2,j+1,k)+soln(2,2,j,k))/ &
-            ! h**2 - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
+       ! *** Non-periodic inflow B.C. ***
+       soln(1,2,j,k) = -(soln(2,2,j+2,k)-2.0_WP*soln(2,2,j+1,k)+soln(2,2,j,k))/ &
+            h**2 - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
        
        j = nxy+1 ! Right outflow
 
-       ! *** Periodic outflow B.C. ***
-       soln(1,2,j,k) = -(soln(2,2,1,k)-2.0_WP*soln(2,2,j,k)+soln(2,2,j-1,k))/h**2 &
-            - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
-
-       ! ! *** Non-periodic outflow B.C. ***
-       ! soln(1,2,j,k) = -(soln(2,2,j,k)-2.0_WP*soln(2,2,j-1,k)+soln(2,2,j-2,k))/h**2 &
+       ! ! *** Periodic outflow B.C. ***
+       ! soln(1,2,j,k) = -(soln(2,2,1,k)-2.0_WP*soln(2,2,j,k)+soln(2,2,j-1,k))/h**2 &
        !      - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
+
+       ! *** Non-periodic outflow B.C. ***
+       soln(1,2,j,k) = -(soln(2,2,j,k)-2.0_WP*soln(2,2,j-1,k)+soln(2,2,j-2,k))/h**2 &
+            - (soln(2,2,j,k+1)-2.0_WP*soln(2,2,j,k)+soln(2,2,j,k-1))/h**2
        
     end do
     !$OMP END DO
