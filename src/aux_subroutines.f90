@@ -25,9 +25,9 @@ contains
     integer, intent(in) :: var
     real(WP), dimension(var,2,nxy+1,nxy+1), intent(inout) :: soln ! Solution matrix
 
-    integer :: i,j,k
+    integer :: midduct ! x-loc halfway along duct
+    integer :: i,j,k ! Loop iterators
     
-
     do i=1,var 
        select case(i)
        case(1) ! zeta (vorticity)
@@ -39,27 +39,26 @@ contains
        case(2) ! psi (stream function)
           do j=1,nxy+1
              do k=1,nxy+1
-                ! if (j.eq.1 .or. j.eq.2 .or. j.eq.nxy .or. j.eq.nxy+1) then
-                ! if (j.eq.1 .and. (k.ge.2 .and. k.le.nxy)) then
-                ! if (j.eq.1) then
-                   ! soln(i,2,j,k) = U*(k-1)*h ! Uniform vel.
-                   
-                   ! soln(i,1,j,k) = -2.0_WP*U*((k-1)*h)**3/(nxy*h)**2 + &
-                        ! 1.5_WP*U*(k-1)*h ! Parabolic vel. (fully developed)
-                   
-                ! else
-                   ! soln(i,2,j,k) = 0.0_WP
-                ! end if
                 soln(i,1,j,k) = U*(k-1)*h
              end do
           end do
        case(3) ! G (iso-surface)
+          midduct = int((nxy+1)/2.0_WP)
+          
           do j=1,nxy+1
-             do k=1,nxy+1
-                if (j.eq.int((nxy+1)/2.0_WP)) then ! Halfway along x-dir in channel
-                   soln(i,1,j,k) = 1.0_WP
-                else
-                   soln(i,1,j,k) = 0.0_WP
+             k = 1 ! Bottom of domain
+             soln(i,1,j,k) = 0.0_WP
+
+             k=nxy+1 ! Top of domain
+             soln(i,1,j,k) = 0.0_WP
+             
+             do k=2,nxy
+                if (j.eq.midduct) then ! Location of surface
+                   soln(i,1,j,k) = 0.0_WP ! Distance to surface
+                elseif (j.lt.midduct) then ! Left of surface
+                   soln(i,1,j,k) = (j-midduct)*h ! Distance to surface < 0
+                else ! Right of surface
+                   soln(i,1,j,k) = (j-midduct)*h ! Distance to surface > 0
                 end if
              end do
           end do
@@ -209,7 +208,7 @@ contains
           end do
        case(3) ! Write G values
           do k=1,nxy+1
-             write(unit=1,fmt="(1000000(e11.4,1x))") (soln(i,1,j,k), j=1,nxy+1)
+             write(unit=1,fmt="(1000000(e11.4,1x))") (soln(i,2,j,k), j=1,nxy+1)
              ! Make sure to check whether t=1 or t=2
           end do
        case default
