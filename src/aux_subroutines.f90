@@ -10,7 +10,7 @@ module AUX_SUBROUTINES
 contains
 
   ! *** Initialize grid and solution matrix *****************************************
-  subroutine soln_init(h,nxy,U,var,soln)
+  subroutine soln_init(h,nxy,U,var,soln,gprofile)
     use CONSTS
     implicit none
 
@@ -24,6 +24,7 @@ contains
     !      var = 3: G (iso-surface)
     integer, intent(in) :: var
     real(WP), dimension(var,2,nxy+1,nxy+1), intent(inout) :: soln ! Solution matrix
+    integer, intent(in) :: gprofile
 
     integer :: midduct ! x-loc halfway along duct
     integer :: i,j,k ! Loop iterators
@@ -44,24 +45,66 @@ contains
           end do
        case(3) ! G (iso-surface)
           midduct = int((nxy+1)/2.0_WP)
-          
+
+          ! Set G at bottom & top walls
           do j=1,nxy+1
              k = 1 ! Bottom of domain
              soln(i,1,j,k) = 0.0_WP
 
              k=nxy+1 ! Top of domain
              soln(i,1,j,k) = 0.0_WP
-             
-             do k=2,nxy
-                if (j.eq.midduct) then ! Location of surface
-                   soln(i,1,j,k) = 0.0_WP ! Distance to surface
-                elseif (j.lt.midduct) then ! Left of surface
-                   soln(i,1,j,k) = (j-midduct)*h ! Distance to surface < 0
-                else ! Right of surface
-                   soln(i,1,j,k) = (j-midduct)*h ! Distance to surface > 0
-                end if
-             end do
           end do
+
+          select case(gprofile)
+          case(1) ! Planar
+             do j=1,nxy+1
+                do k=2,nxy
+                   if (j.eq.midduct) then ! Location of surface
+                      soln(i,1,j,k) = 0.0_WP ! Distance to surface
+                   elseif (j.lt.midduct) then ! Left of surface
+                      soln(i,1,j,k) = (j-midduct)*h ! Distance to surface < 0
+                   else ! Right of surface
+                      soln(i,1,j,k) = (j-midduct)*h ! Distance to surface > 0
+                   end if
+                end do
+             end do
+          case(2) ! Sinusoidal
+             do j=1,nxy+1
+                do k=2,nxy
+                   ! Location of surface
+                   if (j.eq.midduct+int((nxy+1)*0.2_WP*sin(7.0_WP*h*(k-1)))) then
+                      soln(i,1,j,k) = 0.0_WP ! Distance to surface
+                      
+                   ! Left of surface   
+                   elseif (j.lt.midduct+int((nxy+1)*0.2_WP*sin(7.0_WP*h*(k-1)))) then
+                      ! Distance to surface < 0
+                      soln(i,1,j,k) = (j-midduct-int((nxy+1)*0.2_WP * &
+                           sin(7.0_WP*h*(k-1))))*h
+
+                   ! Right of surface   
+                   else
+                      ! Distance to surface > 0
+                      soln(i,1,j,k) = (j-midduct-int((nxy+1)*0.2_WP * &
+                           sin(7.0_WP*h*(k-1))))*h
+                   end if
+                end do
+             end do
+          case(3) ! Triangular
+             ! do j=1,nxy+1
+             !    do k=2,nxy
+             !       if (j.eq.midduct) then ! Location of surface
+             !          soln(i,1,j,k) = 0.0_WP ! Distance to surface
+             !       elseif (j.lt.midduct) then ! Left of surface
+             !          soln(i,1,j,k) = (j-midduct)*h ! Distance to surface < 0
+             !       else ! Right of surface
+             !          soln(i,1,j,k) = (j-midduct)*h ! Distance to surface > 0
+             !       end if
+             !    end do
+             ! end do
+          case default
+             print *, 'Unknown initial flame profile specified.'
+          end select
+          
        case default
           print *, 'Attempted to initialize unknown variable.'
        end select
@@ -143,7 +186,7 @@ contains
 
 
   ! *** Write solution to file ******************************************************
-  subroutine write_solution(ma,h,nxy,dt,nt,var,soln)
+  subroutine write_solution(ma,h,nxy,dt,t_iter,var,soln)
     use CONSTS
     implicit none
 
@@ -151,7 +194,7 @@ contains
     real(WP), intent(in) :: h ! Spatial step size
     integer, intent(in) :: nxy ! Total spatial steps nx=ny
     real(WP), intent(in) :: dt ! Time step size
-    integer, intent(in) :: nt ! Total time steps
+    integer, intent(in) :: t_iter ! Current time iteration
 
     ! Variable index for solution matrix
     !      var = 1: zeta (vorticity)
@@ -169,13 +212,13 @@ contains
     integer :: i,j,k ! Loop iterators
 
     ! Strings used for output filenames
+    character(len=61) :: outfile ! Output filenames (CHECK LENGTH!!!)
     character(len=8), parameter :: wd = '../data/'
-    character(len=54) :: outfile ! Output filenames
-    
-    character(len=3), parameter :: tstep = 'dt_'
     character(len=5) :: mach
-    character(len=2), parameter :: time = '_t', sstep = '_h'
-    character(len=4), parameter :: varnum = '_var', endname = '.txt'
+    character(len=2), parameter :: hchar = '_h', acttchar = '_t'
+    character(len=3), parameter :: dtchar = '_dt'
+    character(len=6), parameter :: titerchar = '_titer'
+    character(len=4), parameter :: varchar = '_var'
     
 
     ! Determine the mach number under consideration 
@@ -195,8 +238,11 @@ contains
 
     ! Write data to file
     do i=1,var
-       write(outfile,"(a8,a5,a3,i10.10,a2,i9.9,a2,i6.6,a4,i1,a4)") wd,mach,tstep, &
-            int(dt*1E9_WP),time,nt+1,sstep,int(h*1E5_WP),varnum,i,endname
+       ! write(outfile,"(a8,a5,a3,i10.10,a2,i9.9,a2,i7.7,a4,i1,a4)") wd,mach,tstep, &
+            ! int(dt*1E9_WP),time,nt+1,sstep,int(h*1E5_WP),varnum,i,endname
+
+       write(outfile,"(a8,i1,a4,a5,a2,f9.7,a3,e8.2,a2,e10.4)") wd,i, &
+            varchar,mach,hchar,h,dtchar,dt,acttchar,t_iter*dt
 
        open(unit=1,file=outfile,status="replace",action="readwrite")
 
@@ -208,7 +254,7 @@ contains
           end do
        case(3) ! Write G values
           do k=1,nxy+1
-             write(unit=1,fmt="(1000000(e11.4,1x))") (soln(i,2,j,k), j=1,nxy+1)
+             write(unit=1,fmt="(1000000(e11.4,1x))") (soln(i,1,j,k), j=1,nxy+1)
              ! Make sure to check whether t=1 or t=2
           end do
        case default

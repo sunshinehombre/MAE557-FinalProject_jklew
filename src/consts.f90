@@ -12,7 +12,7 @@ module CONSTS
   integer, parameter :: NTHREADS = 1
 
   ! Burning velocity of unstretched planar flame [m/s]
-  real(WP), parameter :: SLNOT = 0.1_WP
+  real(WP), parameter :: SLNOT = 25.0_WP !3.0_WP !0.1_WP
 
   ! Markstein length [m]
   real(WP), parameter :: ML = 0.0001_WP
