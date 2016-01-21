@@ -2,7 +2,9 @@
 # G-equation solver.
 # This file is called convergenceplotter.p and needs to be placed in FinalProject/data
 
-set term pngcairo dashed enhanced
+# set term pngcairo dashed enhanced
+set terminal postscript eps size 8,6 enhanced color \
+    font 'Helvetica,32' linewidth 1
     
     set autoscale
     unset log
@@ -11,28 +13,14 @@ set term pngcairo dashed enhanced
     set ytic auto
     set key font ",10"
     set size square
+    set encoding utf8
 
-    set style line 1 lc rgb "black" pt 7 lt 0 lw 1
-    set style line 2 lc rgb "blue" pt 7 lt 0 lw 1
-    set style line 3 lc rgb "black" lt -1 lw 1
-    set style line 4 lc rgb "blue" lt -1 lw 1
-    set style line 5 lc rgb "green" lt -1 lw 1
-    set style line 6 lc rgb "orange" lt -1 lw 1
-    set style line 7 lc rgb "cyan" lt -1 lw 1
-    set style line 8 lc rgb "violet" lt -1 lw 1
-    set style line 9 lc rgb "red" lt -1 lw 1
-    set style line 10 lc rgb "black" lt 3 lw 1
-    set style line 11 lc rgb "blue" pt 5 lt -1 lw 1
-    set style line 12 lc rgb "green" pt 7 lt -1 lw 1
-    set style line 13 lc rgb "red" pt 9 lt -1 lw 1
-    set style line 14 lc rgb "grey" pt 13 lt -1 lw 1
-    set style line 15 lc rgb "black" lt 2 lw 1  
-    set style line 16 lc rgb "violet" pt 13 lt -1 lw 1
-    set style line 17 lc rgb "blue" lt 3 lw 1
-    set style line 18 lc rgb "blue" lt 4 lw 1
+    set style line 1 lc rgb "black" lt 2 lw 1 # Dotted line
+    set style line 2 lc rgb "blue" pt 5 lt -1 lw 1 # Solid line w filled blue square
+    set style line 3 lc rgb "green" pt 7 lt -1 lw 1 # Solid line w filled green circles
 
     # *** Temporal Convergence ***
-    set output "temporal_convergence.png"
+    set output "temporal_convergence.eps"
     set logscale x
     set logscale y
     set xrange [1E-8:1E-3]
@@ -41,16 +29,16 @@ set term pngcairo dashed enhanced
     set ylabel "|{/Symbol e}|"
     set key right bottom
 
-    set arrow from 1E-7,1E-6 to 0.0001,1E-3 nohead front ls 15
+    set arrow from 1E-7,1E-6 to 0.0001,1E-3 nohead front ls 1
     set label "\\~ {/Symbol D}t" at 1E-5,1E-5 right
 
-    plot "timeErrVortSF.txt" u 1:2 title "Vorticity-Stream Function" w linespoints ls 11 , \
-    "timeErrGEqn.txt" u 1:2 title "G-Eqn Solver" w linespoints ls 12
+    plot "timeErrVortSF.txt" u 1:2 title "Vorticity-Stream Function" w linespoints ls 2 , \
+    "timeErrGEqn.txt" u 1:2 title "G-Eqn Solver" w linespoints ls 3
 
     # *** Spatial Convergence ***
     unset arrow
     unset label
-    set output "spatial_convergence.png"
+    set output "spatial_convergence.eps"
     set logscale x
     set logscale y
     set xrange [0.001:1.0]
@@ -60,14 +48,14 @@ set term pngcairo dashed enhanced
     set ylabel "L_{1} Norm"
     set key right top
 
-    # set arrow from 1E-6,1E-4 to 0.001,0.1 nohead front ls 15
+    # set arrow from 1E-6,1E-4 to 0.001,0.1 nohead front ls 1
     # set label "\\~ {/Symbol D}x" at 1E-5,0.002 right
 
-    set arrow from 0.01,3e-2 to 0.1,3e-1 nohead front ls 15
+    set arrow from 0.01,3e-2 to 0.1,3e-1 nohead front ls 1
     set label "\\~ {/Symbol D}x" at 0.03,0.03 right
 
-    set arrow from 0.01,1e-4 to 0.1,1e-2 nohead front ls 15
+    set arrow from 0.01,1e-4 to 0.1,1e-2 nohead front ls 1
     set label "\\~ {/Symbol D}x^2" at 0.04,9e-4 left
 
-    plot "spceErrVortSF.txt" u 1:2 title "Vorticity-Stream Function" w linespoints ls 11 , \
-    "spceErrGEqn.txt" u 1:2 title "G-Eqn Solver" w linespoints ls 12
+    plot "spceErrVortSF.txt" u 1:2 title "Vorticity-Stream Function" w linespoints ls 2 , \
+    "spceErrGEqn.txt" u 1:2 title "G-Eqn Solver" w linespoints ls 3

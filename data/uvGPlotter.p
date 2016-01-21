@@ -1,7 +1,10 @@
 # Gnuplot script file to plot the evolution of u(x,y,t), v(x,y,t), and G(x,y,t)
 # This file is called uvGPlotter.p and needs to be placed in FinalProject/data
 
-set term pngcairo dashed enhanced
+# set term pngcairo dashed enhanced
+set terminal postscript eps size 8,6 enhanced color \
+    font 'Helvetica,32' linewidth 1
+    
     set autoscale
     unset log
     unset label
@@ -9,6 +12,7 @@ set term pngcairo dashed enhanced
     set ytic auto
     set key font ",10"
     set size square
+    set encoding utf8
 
     # *** Set variables *************************************************************
     h = 0.015625 # Spatial step
@@ -39,7 +43,8 @@ set term pngcairo dashed enhanced
     do for [ufile in udata] {
 	unset log
 	    unset cblabel
-	    set output sprintf('%s.png', ufile)
+	    # set output sprintf('%s.png', ufile)
+	    set output sprintf('%s.eps', ufile)
 	    set cbrange[0:25]
 	    set cblabel "u(x,y,t) [m/s]"
 	    plot ufile matrix with image title ""
@@ -49,7 +54,8 @@ set term pngcairo dashed enhanced
     do for [vfile in vdata] {
 	unset log
 	    unset cblabel
-	    set output sprintf('%s.png', vfile)
+	    # set output sprintf('%s.png', vfile)
+	    set output sprintf('%s.eps', vfile)
 	    set cbrange[-0.1:0.1]
 	    set cblabel "v(x,y,t) [m/s]"
 	    plot vfile matrix with image title ""
@@ -59,7 +65,8 @@ set term pngcairo dashed enhanced
 do for [gfile in gdata] {
     unset log
 	unset cblabel
-	set output sprintf('%s.png', gfile)
+	# set output sprintf('%s.png', gfile)
+	set output sprintf('%s.eps', gfile)
 	set cbrange [-1:1]
 	# set cbtics ('G<G_{o}' -1, 'G=G_{o}' 0, 'G>G_{o}' 1)
 	set cbtics ('G<G_{o}' -1, 'G>G_{o}' 1)
