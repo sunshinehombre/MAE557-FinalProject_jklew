@@ -89,18 +89,6 @@ contains
                    end if
                 end do
              end do
-          case(3) ! Triangular
-             ! do j=1,nxy+1
-             !    do k=2,nxy
-             !       if (j.eq.midduct) then ! Location of surface
-             !          soln(i,1,j,k) = 0.0_WP ! Distance to surface
-             !       elseif (j.lt.midduct) then ! Left of surface
-             !          soln(i,1,j,k) = (j-midduct)*h ! Distance to surface < 0
-             !       else ! Right of surface
-             !          soln(i,1,j,k) = (j-midduct)*h ! Distance to surface > 0
-             !       end if
-             !    end do
-             ! end do
           case default
              print *, 'Unknown initial flame profile specified.'
           end select
@@ -159,16 +147,10 @@ contains
        do k=2,nxy
           if (j.eq.1) then ! Left boundary
              uv(1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
-             ! uv(2,j,k) = -(-soln(2,2,j+2,k) + 4.0_WP*soln(2,2,j+1,k) - &
-             ! 3.0_WP*soln(2,2,j,k))/(2.0_WP*h) ! v
-
              uv(2,j,k) = -(soln(2,2,j+1,k) - soln(2,2,nxy+1,k))/(2.0_WP*h) ! v
 
           elseif (j.eq.nxy+1) then ! Right boundary
              uv(1,j,k) = (soln(2,2,j,k+1) - soln(2,2,j,k-1))/(2.0_WP*h) ! u
-             ! uv(2,j,k) = -(3.0_WP*soln(2,2,j,k) - 4.0_WP*soln(2,2,j-1,k) + &
-                  ! soln(2,2,j-2,k))/(2.0_WP*h) ! v
-
              uv(2,j,k) = -(soln(2,2,1,k) - soln(2,2,j-1,k))/(2.0_WP*h) ! v
 
           else
@@ -238,11 +220,8 @@ contains
 
     ! Write data to file
     do i=1,var
-       ! write(outfile,"(a8,a5,a3,i10.10,a2,i9.9,a2,i7.7,a4,i1,a4)") wd,mach,tstep, &
-            ! int(dt*1E9_WP),time,nt+1,sstep,int(h*1E5_WP),varnum,i,endname
-
-       write(outfile,"(a8,i1,a4,a5,a2,f9.7,a3,e8.2,a2,e10.4)") wd,i, &
-            varchar,mach,hchar,h,dtchar,dt,acttchar,t_iter*dt
+       write(outfile,"(a8,i1,a4,a5,a2,f9.7,a3,e8.2,a2,e10.4)") wd,i,varchar,mach, &
+            hchar,h,dtchar,dt,acttchar,t_iter*dt
 
        open(unit=1,file=outfile,status="replace",action="readwrite")
 
