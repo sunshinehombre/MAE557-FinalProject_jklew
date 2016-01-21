@@ -11,7 +11,6 @@ set terminal postscript eps size 8,6 enhanced color \
     unset label
     set xtic auto
     set ytic auto
-    set key font ",10"
     set size square
     set encoding utf8
 
