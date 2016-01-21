@@ -11,7 +11,6 @@ set terminal postscript eps size 8,6 enhanced color \
     set xtic auto
     set ytic auto
     set size square
-    set encoding utf8
 
     # *** Set variables *************************************************************
     h = 0.015625 # Spatial step

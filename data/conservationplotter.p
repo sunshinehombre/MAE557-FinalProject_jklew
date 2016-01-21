@@ -11,7 +11,6 @@ set terminal postscript eps size 8,6 enhanced color \
     set xtic auto
     set ytic auto
     set size square
-    set encoding utf8
 
     set style line 1 lc rgb "red" lt -1 lw 1 # Solid line
 
