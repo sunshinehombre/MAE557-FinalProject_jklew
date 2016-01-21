@@ -18,6 +18,7 @@ clean :
 	rm -f $(DATADIR)/[0-9]*
 	rm -f $(DATADIR)/*~
 	rm -f $(DATADIR)/*.png
+	rm -f $(DATADIR)/*.eps
 	rm -f $(DATADIR)/*.txt
 	rm -f $(MODDIR)/*.mod
 	rm -f $(OBJDIR)/*.o
