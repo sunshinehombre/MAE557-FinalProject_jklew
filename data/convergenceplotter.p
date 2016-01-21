@@ -1,4 +1,5 @@
-# Gnuplot script file to plot the temporal and spatial convergence of the vorticity-stream function method
+# Gnuplot script file to plot the temporal and spatial convergence of the vorticity-stream function method and the
+# G-equation solver.
 # This file is called convergenceplotter.p and needs to be placed in FinalProject/data
 
 set term pngcairo dashed enhanced
@@ -30,21 +31,21 @@ set term pngcairo dashed enhanced
     set style line 17 lc rgb "blue" lt 3 lw 1
     set style line 18 lc rgb "blue" lt 4 lw 1
 
-    # # *** Temporal Convergence ***
-    # set output "temporal_convergence.png"
-    # set logscale x
-    # set logscale y
-    # set xrange [1E-6:1E-3]
-    # set yrange [1E-6:1E-1]
-    # set xlabel "{/Symbol D}t"
-    # set ylabel "|{/Symbol e}|"
-    # set key right bottom
+    # *** Temporal Convergence ***
+    set output "temporal_convergence.png"
+    set logscale x
+    set logscale y
+    set xrange [1E-8:1E-3]
+    set yrange [1E-8:1.0]
+    set xlabel "{/Symbol D}t"
+    set ylabel "|{/Symbol e}|"
+    set key right bottom
 
-    # set arrow from 1E-6,1E-4 to 0.001,0.1 nohead front ls 15
-    # set label "\\~ {/Symbol D}t" at 1E-5,0.002 right
+    set arrow from 1E-7,1E-6 to 0.0001,1E-3 nohead front ls 15
+    set label "\\~ {/Symbol D}t" at 1E-5,1E-5 right
 
-    # plot "timeErrVortSF.txt" u 1:2 title "Vorticity-Stream Function" w linespoints ls 11 , \
-    # "timeErrGEqn.txt" u 1:2 title "G-Eqn Solver" w linespoints ls 12
+    plot "timeErrVortSF.txt" u 1:2 title "Vorticity-Stream Function" w linespoints ls 11 , \
+    "timeErrGEqn.txt" u 1:2 title "G-Eqn Solver" w linespoints ls 12
 
     # *** Spatial Convergence ***
     unset arrow
@@ -53,20 +54,20 @@ set term pngcairo dashed enhanced
     set logscale x
     set logscale y
     set xrange [0.001:1.0]
-    set yrange [1E-12:1]
+    set yrange [1E-4:1]
     set xlabel "{/Symbol D}x"
     # set ylabel "|{/Symbol e}|"
     set ylabel "L_{1} Norm"
-    set key right bottom
+    set key right top
 
     # set arrow from 1E-6,1E-4 to 0.001,0.1 nohead front ls 15
     # set label "\\~ {/Symbol D}x" at 1E-5,0.002 right
 
-    set arrow from 0.01,1e-4 to 0.1,1e-3 nohead front ls 15
-    set label "\\~ {/Symbol D}x" at 0.03,0.001 right
+    set arrow from 0.01,3e-2 to 0.1,3e-1 nohead front ls 15
+    set label "\\~ {/Symbol D}x" at 0.03,0.03 right
 
-    set arrow from 0.01,1e-8 to 0.1,1e-6 nohead front ls 15
-    set label "\\~ {/Symbol D}x^2" at 0.02,5e-7 left
+    set arrow from 0.01,1e-4 to 0.1,1e-2 nohead front ls 15
+    set label "\\~ {/Symbol D}x^2" at 0.04,9e-4 left
 
     plot "spceErrVortSF.txt" u 1:2 title "Vorticity-Stream Function" w linespoints ls 11 , \
     "spceErrGEqn.txt" u 1:2 title "G-Eqn Solver" w linespoints ls 12

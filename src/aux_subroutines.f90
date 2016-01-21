@@ -218,6 +218,10 @@ contains
     ! Convert final stream function solution to velocities
     call convert_streamfunc(h,nxy,var,soln,var2,uv)
 
+    ! Print max u and v velocities to screen
+    print *, 't = ', t_iter*dt, 'Max u = ', MAXVAL(uv(1,:,:))
+    print *, 't = ', t_iter*dt, 'Max v = ', MAXVAL(uv(2,:,:))
+
     ! Write data to file
     do i=1,var
        write(outfile,"(a8,i1,a4,a5,a2,f9.7,a3,e8.2,a2,e10.4)") wd,i,varchar,mach, &

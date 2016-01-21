@@ -1,0 +1,39 @@
+#!/bin/bash
+#
+# run_everything_script written by Jeffry Lew, jklew@princeton.edu
+#
+# This script allows my MAE 557 final project to be easily run on the Nobel cluster
+# run_everything_script must be placed in FinalProject/
+# While in the FinalProject/ directory, execute with ./run_everything_script
+
+#module load intel/14.0/64/14.0.4.211
+
+wd=`pwd`
+datadir="/data"
+bindir="/bin"
+secondary="/secondary.txt"
+uvg="uvGPlotter.p"
+converge="convergenceplotter.p"
+conserve="conservationplotter.p"
+
+make clean
+make all
+
+cd $wd$bindir
+./gEqnSolver
+
+while [ ! -e "$wd$datadir$secondary" ]
+do
+    sleep 30
+done
+
+if [ -e "$wd$datadir$secondary" ]
+then
+    cd $wd$datadir
+    gnuplot $uvg
+    gnuplot $converge
+    gnuplot $conserve
+    cd ../
+fi
+
+exit 0

@@ -13,9 +13,12 @@ $(OBJDIR)/%.o : %.f90
 	$(F90) $(F90FLAGS) -c -o $@ $< $(MODFLAGS)
 
 clean :
+	rm -f $(HOMEDIR)/*~
 	rm -f $(BINDIR)/*
 	rm -f $(DATADIR)/[0-9]*
 	rm -f $(DATADIR)/*~
+	rm -f $(DATADIR)/*.png
+	rm -f $(DATADIR)/*.txt
 	rm -f $(MODDIR)/*.mod
 	rm -f $(OBJDIR)/*.o
 	rm -f $(SRCDIR)/*~

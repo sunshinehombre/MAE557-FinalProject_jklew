@@ -30,7 +30,7 @@ set term pngcairo dashed enhanced
     set style line 17 lc rgb "blue" lt 3 lw 1
     set style line 18 lc rgb "blue" lt 4 lw 1
 
-    tottime = 0.3
+    tottime = 1.0
 
     # *** Primary Conservation ***
     unset arrow
